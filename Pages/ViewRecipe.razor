@@ -1,0 +1,51 @@
+﻿@page "/recipe/{id:int}"
+
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@inject NavigationManager NavigationManager
+
+<div class="card border-light">
+    <div class="card-header">@CurrentRecipe.Name</div>
+    <div class="card-body">
+        <h2 class="card-title">Course</h2>
+        <p class="card-text">@CurrentRecipe.Course</p>
+        <h2 class="card-title">Description</h2>
+        <p class="card-text">@CurrentRecipe.Description</p>
+        <h2 class="card-title">Ingredients</h2>
+        @if (CurrentRecipe.Ingredients != null)
+        {
+            <ul class="list-group list-group-flush">
+            @foreach (Ingredient ingredient in CurrentRecipe.Ingredients)
+            {
+                <li class="list-group-item">@ingredient.Amount @ingredient.Unit @ingredient.Name</li>
+            }
+            </ul>
+        }
+        <h2 class="card-title">Steps</h2>
+        @if (CurrentRecipe.Steps != null)
+        {
+            <ul class="list-group list-group-flush">
+            @foreach (Step step in CurrentRecipe.Steps)
+            {
+                <li class="list-group-item">@step.StepNo @step.Description</li>
+            }
+            </ul>
+        }
+        <button class="btn btn-danger" @onclick="@(x => NavigationManager.NavigateTo($"edit/{CurrentRecipe.RecipeID}"))">Edit</button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    public Recipe CurrentRecipe { get; set; }
+
+    protected async override Task OnParametersSetAsync()
+    {
+        using (var ctx = ContextFactory.CreateDbContext())
+            {
+                CurrentRecipe = await ctx.Recipes.Where(r => r.RecipeID == Id).Include(r => r.Ingredients).Include(r => r.Steps).FirstOrDefaultAsync<Recipe>();
+            }
+    }
+
+}

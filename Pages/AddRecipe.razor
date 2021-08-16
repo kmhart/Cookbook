@@ -1,0 +1,147 @@
+﻿@page "/edit/{id:int}"
+
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@inject IHttpContextAccessor Accessor
+
+<div class="card m-3">
+    <h3 class="card-header">Add Recipe</h3>
+    <div class="card-body">
+        <EditForm Model="@recipe" OnValidSubmit="@OnSubmit">
+            <ObjectGraphDataAnnotationsValidator />
+            <ValidationSummary />
+            <div class="form-row">
+                <div class="form-group col-sm-6">
+                    <label for="recipe-name">Recipe Name</label>
+                    <InputText id="recipe-name" @bind-Value="recipe.Name" class="form-control" placeholder="Recipe Name"/>
+                </div>
+                <div class="form-group col-sm-6">
+                    <label for="course">Course</label>
+                    <InputSelect id="course" class="form-control" @bind-Value="recipe.Course">
+                        @foreach (string value in courses)
+                        {
+                            <option>@value</option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="description">Description</label>
+                <InputTextArea id="description" @bind-Value="recipe.Description" class="form-control" placeholder="Description" />
+            </div>
+            <div class="form-row">
+                <div class="form-group col-sm-1">
+                    <button class="btn btn-light" type="button"
+                    @onclick="@(() => recipe.Ingredients.Add(new Ingredient()))">Add Ingredient</button>
+                </div>
+                <div class="form-group col-sm-11">
+                    @foreach (Ingredient i in recipe.Ingredients)
+                    {
+                        <div class="form-row">
+                            <div class="form-group col-sm-5">
+                                <label for="ingredient-name">Name</label>
+                                <InputText id="ingredient-name" class="form-control" @bind-Value="i.Name" placeholder="Name" />
+                            </div>
+                            <div class="form-group col-sm-5">
+                                <label for="ingredient-amt">Amount</label>
+                                <InputText id="ingredient-amt" class="form-control" @bind-Value="i.Amount" placeholder="Amount" />
+                            </div>
+                            <div class="form-group col-sm-2">
+                                <label for="unit">Unit</label>
+                                <InputSelect id="unit" class="form-control" @bind-Value="i.Unit">
+                                    @foreach (string value in units)
+                                    {
+                                        <option>@value</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            </div>
+                    }
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group col-sm-1">
+                    <button class="btn btn-light" type="button"
+                    @onclick="@(() => recipe.Steps.Add(new Step()))">Add Step</button>
+                </div>
+                <div class="form-group col-sm-11">
+                    @for (int i = 0; i < recipe.Steps.Count; i++)
+                    {
+                        var current = recipe.Steps.ElementAt(i);
+                        current.StepNo = i + 1;
+                        <div class="form-row">
+                            <div class="form-group col-sm-1">
+                                <InputNumber readonly class="form-control" @bind-Value="current.StepNo" />
+                            </div>
+                            <div class="form-group col-sm-11">
+                                <InputText class="form-control" @bind-Value="current.Description" placeholder="Description" />
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div><button class="btn btn-primary" type="submit">Submit</button></div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    private Recipe recipe = new();
+    private List<string> units = new List<string>
+        {
+            "tsp", "tbsp", "fl oz", "gill", "cup", "pt", "qt", "gal", "ml", "l", "dl",
+            "lb", "oz", "mg", "g", "kg", "pinch", ""
+        };
+    private List<string> courses = new List<string>
+        {
+            "Breakfast", "Lunch", "Dinner", "Dessert", "Sides"
+        };
+
+    protected override void OnInitialized()
+    {
+        units.Sort();
+    }
+
+    protected async override Task OnParametersSetAsync()
+    {
+        if (Id != -1)
+        {
+            using (var ctx = ContextFactory.CreateDbContext())
+            {
+                recipe = await ctx.Recipes.Where(r => r.RecipeID == Id).Include(r => r.Ingredients).Include(r => r.Steps).FirstOrDefaultAsync<Recipe>();
+            }
+
+        }
+        else
+        {
+            recipe = new();
+            recipe.Ingredients = new List<Ingredient>();
+            recipe.Steps = new List<Step>();
+        }
+
+    }
+    private async Task OnSubmit()
+    {
+        using (var ctx = ContextFactory.CreateDbContext())
+        {
+            string id = Accessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            recipe.User = ctx.Users.FirstOrDefault(x => x.Id == id);
+            
+            if (Id != -1)
+            {
+                ctx.Update(recipe);
+            }
+            else
+            {
+                await ctx.AddAsync(recipe);
+            }
+            await ctx.SaveChangesAsync();
+        }
+
+        recipe = new();
+        recipe.Ingredients = new List<Ingredient>();
+        recipe.Steps = new List<Step>();
+        Id = -1;
+    }
+}

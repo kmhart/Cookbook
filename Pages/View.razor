@@ -1,0 +1,36 @@
+﻿@page "/view/{passedcourse}"
+
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor Accessor
+
+<h3>@PassedCourse</h3>
+
+<table class="table">
+    <tbody>
+        @foreach (var recipe in recipes)
+        {
+            <tr>
+                <td>@recipe.Name</td>
+                <td><button class="btn btn-dark" @onclick="@(x => NavigationManager.NavigateTo($"recipe/{recipe.RecipeID}"))">View</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter]
+    public string PassedCourse { get; set; }
+
+    private IEnumerable<Recipe> recipes { get; set; }
+
+    protected async override Task OnParametersSetAsync()
+        {
+            string id = Accessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            using (var ctx = ContextFactory.CreateDbContext())
+            {
+                ApplicationUser user = await ctx.Users.Where(r => r.Id == id).Include(r => r.Recipes).FirstOrDefaultAsync<ApplicationUser>();
+                recipes = user.Recipes.Where(r => r.Course == PassedCourse);
+            }
+        }
+}
