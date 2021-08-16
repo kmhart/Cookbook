@@ -126,8 +126,8 @@
         using (var ctx = ContextFactory.CreateDbContext())
         {
             string id = Accessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            recipe.User = ctx.Users.FirstOrDefault(x => x.Id == id);
-            
+            recipe.User = await ctx.Users.FirstOrDefaultAsync<ApplicationUser>(x => x.Id == id);
+
             if (Id != -1)
             {
                 ctx.Update(recipe);
